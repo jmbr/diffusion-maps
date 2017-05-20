@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# GIT_ID=`git rev-parse HEAD`
+GIT_ID=`git describe --always`
+GIT_NUM=`git rev-list HEAD --count`
+DATE=`date +%Y-%b-%d`
+DNUM=`date +%Y%m%d`
+
+(cat <<EOF
+__all__ = ['version']
+
+
+class version:
+    """Current version."""
+    v_short = 'DNUM.GIT_NUM'
+    v_long = 'DNUM.GIT_NUM (DATE)'
+    v_gnu = 'diffusion_maps DNUM.GIT_NUM (DATE)'
+EOF
+) | sed -e "s/GIT_ID/$GIT_ID/g" -e "s/DATE/$DATE/g" -e "s/DNUM/$DNUM/g" -e "s/GIT_NUM/$GIT_NUM/g"
+
+echo "diffusion-maps $DNUM.$GIT_NUM ($DATE)" >&2

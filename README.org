@@ -1,0 +1,65 @@
+#+TITLE: Diffusion Maps and Geometric Harmonics for Python
+#+AUTHOR: Juan M. Bello Rivas
+#+EMAIL: jmbr@superadditive.com
+#+DATE: <2017-05-20 Sat>
+
+* Overview
+
+The =diffusion-maps= library for Python provides a fast and accurate implementation of diffusion maps[fn:1] and geometric harmonics[fn:2]. Its speed stems from the use of sparse linear algebra and (optionally) graphics processing units to accelerate computations.
+The included code routinely solves eigenvalue problems 3 x faster than SciPy using GPUs on matrices with over 200 million non-zero entries. 
+
+The package includes a command-line utility for the quick calculation of diffusion maps on data sets.
+
+Some of the features of the =diffusion-maps= module include:
+
+- Fast evaluation of distance matrices using nearest neighbors.
+
+- Fast and accurate computation of eigenvalue/eigenvector pairs using sparse linear algebra.
+
+- Optional GPU-accelerated sparse linear algebra routines.
+
+- Optional interface to the [[https://github.com/opencollab/arpack-ng][ARPACK-NG]] library.
+
+- Simple and easily modifiable code.
+
+[fn:1] Coifman, R. R., & Lafon, S. (2006). Diffusion maps. Applied and Computational Harmonic Analysis, 21(1), 5–30. http://doi.org/10.1016/j.acha.2006.04.006
+
+[fn:2] Coifman, R. R., & Lafon, S. (2006). Geometric harmonics: A novel tool for multiscale out-of-sample extension of empirical functions. Applied and Computational Harmonic Analysis, 21(1), 31–52. http://doi.org/10.1016/j.acha.2005.07.005
+
+#+CAPTION: Geometric harmonics for $z = sin(x^2 + y^2)$.
+#+NAME:   fig:geometric-harmonics
+[[./geometric-harmonics.png]]
+
+* Prerequisites
+
+The library is implemented in Python 3.5+ and uses [[http://www.numpy.org/][NumPy]] and [[https://www.scipy.org/][SciPy]]. It is recommended to install [[https://mathema.tician.de/software/pycuda/][PyCUDA]] to enable the GPU-accelerated eigenvalue solver.
+
+The =diffusion-maps= command can display the resulting diffusion maps using [[https://matplotlib.org/][Matplotlib]] if it is available.
+
+* Installation
+
+ Use ~python setup.py install~ to install on your system or ~python setup.py install --user~ for a user-specific installation.
+
+* Command-line utility
+
+The ~diffusion-maps~ command reads data sets stored in NPY format. The simplest way to use it is to invoke it as follows:
+
+#+BEGIN_SRC bash
+diffusion-maps DATA-SET.NPY EPSILON-VALUE
+#+END_SRC
+
+There exist parameters to save and visualize different types of results, to specify how many eigenvalue/eigenvector pairs to compute, etc. See the help page displayed by:
+
+#+BEGIN_SRC bash
+diffusion-maps --help
+#+END_SRC
+
+* Additional documentation
+
+[[http://www.sphinx-doc.org/en/stable/][Sphinx]]-based API documentation is available in the =doc/= folder. Run
+
+#+BEGIN_SRC bash
+make -C doc html
+#+END_SRC
+
+to build the documentation.
