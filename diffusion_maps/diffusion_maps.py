@@ -12,7 +12,7 @@ __all__ = ['DiffusionMaps', 'downsample']
 
 
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 import numpy as np
 import scipy
@@ -22,7 +22,6 @@ from scipy.spatial import cKDTree
 from . import default
 from . import utils
 from . import clock
-Clock = clock.Clock
 
 
 def downsample(data: np.array, num_samples: int) -> np.array:
@@ -49,26 +48,6 @@ def downsample(data: np.array, num_samples: int) -> np.array:
     indices = sorted(np.random.choice(range(data.shape[0]), num_samples,
                                       replace=False))
     return data[indices, :]
-
-
-def make_stochastic_matrix(matrix: scipy.sparse.csr_matrix) -> None:
-    """Normalize a sparse, non-negative matrix in CSR format.
-
-    Normalizes (in the 1-norm) each row of a non-negative matrix and returns
-    the result.
-
-    Parameters
-    ----------
-    matrix : np.array
-        A matrix with non-negative entries to be normalized.
-
-    """
-    data = matrix.data
-    indptr = matrix.indptr
-    for i in range(matrix.shape[0]):
-        a, b = indptr[i:i+2]
-        norm1 = np.sum(data[a:b])
-        data[a:b] /= norm1
 
 
 class DiffusionMaps:
@@ -133,48 +112,17 @@ class DiffusionMaps:
         else:
             self._cut_off = cut_off
 
-        if kdtree_options is None:
-            kdtree_options = dict()
-        with Clock() as clock:
-            self._kdtree = cKDTree(points, **kdtree_options)
-            logging.debug('KD-tree computation: {} seconds.'.format(clock))
+        self.compute_kdtree(points, kdtree_options)
 
-        with Clock() as clock:
-            distance_matrix \
-                = self._kdtree.sparse_distance_matrix(self._kdtree,
-                                                      self._cut_off,
-                                                      output_type='coo_matrix')
-            logging.debug('Sparse distance matrix computation: {} seconds.'
-                          .format(clock))
+        distance_matrix = self.compute_distance_matrix()
+        distance_matrix = utils.coo_tocsr(distance_matrix)
 
-        logging.debug('Distance matrix has {} nonzero entries ({:.4f}% dense).'
-                      .format(distance_matrix.nnz, distance_matrix.nnz
-                              / np.prod(distance_matrix.shape)))
+        self.kernel_matrix = self.compute_kernel_matrix(distance_matrix)
 
-        with Clock() as clock:
-            distance_matrix = utils.coo_tocsr(distance_matrix)
-            logging.debug('Conversion from COO to CSR format: {} seconds.'
-                          .format(clock))
+        if normalize_kernel is True:
+            self.normalize_kernel_matrix(self.kernel_matrix)
 
-        with Clock() as clock:
-            self.kernel_matrix = self._compute_kernel_matrix(distance_matrix)
-            logging.debug('Kernel matrix computation: {} seconds.'
-                          .format(clock))
-
-        with Clock() as clock:
-            if normalize_kernel is True:
-                make_stochastic_matrix(self.kernel_matrix)
-                logging.debug('Normalization: {} seconds.'.format(clock))
-
-        with Clock() as clock:
-            if use_cuda is True:
-                from .gpu_eigensolver import eigensolver
-                ew, ev = eigensolver(self.kernel_matrix, num_eigenpairs)
-                logging.debug('GPU eigensolver: {} seconds.'.format(clock))
-            else:
-                from .cpu_eigensolver import eigensolver
-                ew, ev = eigensolver(self.kernel_matrix, num_eigenpairs)
-                logging.debug('CPU eigensolver: {} seconds.'.format(clock))
+        ew, ev = self.solve_eigenproblem(num_eigenpairs, use_cuda)
 
         self.eigenvalues = ew
         self.eigenvectors = ev
@@ -186,7 +134,34 @@ class DiffusionMaps:
         """
         return 2.0 * epsilon  # XXX Validate this.
 
-    def _compute_kernel_matrix(self, distance_matrix: scipy.sparse.spmatrix) \
+    @clock.log
+    def compute_kdtree(self, points: np.array,
+                       kdtree_options: Optional[Dict]) -> None:
+        """Compute kd-tree from points.
+
+        """
+        if kdtree_options is None:
+            kdtree_options = dict()
+        self._kdtree = cKDTree(points, **kdtree_options)
+
+    @clock.log
+    def compute_distance_matrix(self) -> scipy.sparse.coo_matrix:
+        """Compute sparse distance matrix in COO format.
+
+        """
+        distance_matrix \
+            = self._kdtree.sparse_distance_matrix(self._kdtree,
+                                                  self._cut_off,
+                                                  output_type='coo_matrix')
+
+        logging.debug('Distance matrix has {} nonzero entries ({:.4f}% dense).'
+                      .format(distance_matrix.nnz, distance_matrix.nnz
+                              / np.prod(distance_matrix.shape)))
+
+        return distance_matrix
+
+    @clock.log
+    def compute_kernel_matrix(self, distance_matrix: scipy.sparse.spmatrix) \
             -> scipy.sparse.spmatrix:
         """Compute kernel matrix.
 
@@ -209,8 +184,42 @@ class DiffusionMaps:
         kernel_matrix = distance_matrix._with_data(transformed_data, copy=True)
         return kernel_matrix
 
+    @staticmethod
+    @clock.log
+    def normalize_kernel_matrix(matrix: scipy.sparse.csr_matrix) -> None:
+        """Normalize a sparse, non-negative matrix in CSR format.
+
+        Normalizes (in the 1-norm) each row of a non-negative matrix inplace.
+
+        Parameters
+        ----------
+        matrix : np.array
+            A matrix with non-negative entries to be normalized.
+
+        """
+        data = matrix.data
+        indptr = matrix.indptr
+        for i in range(matrix.shape[0]):
+            a, b = indptr[i:i+2]
+            norm1 = np.sum(data[a:b])
+            data[a:b] /= norm1
+
+    @clock.log
     def kernel_function(self, distances: np.array) -> np.array:
         """Evaluate kernel function.
 
         """
         return np.exp(-np.square(distances) / (2.0 * self.epsilon))
+
+    @clock.log
+    def solve_eigenproblem(self, num_eigenpairs: int, use_cuda: bool) \
+            -> Tuple[np.array, np.array]:
+        """Solve eigenvalue problem using CPU or GPU solver.
+
+        """
+        if use_cuda is True:
+            from .gpu_eigensolver import eigensolver
+        else:
+            from .cpu_eigensolver import eigensolver
+
+        return eigensolver(self.kernel_matrix, num_eigenpairs)

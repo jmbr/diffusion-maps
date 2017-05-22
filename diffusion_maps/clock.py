@@ -3,9 +3,10 @@
 """
 
 
-__all__ = ['ClockError', 'Clock']
+__all__ = ['ClockError', 'Clock', 'log']
 
 import datetime
+import logging
 import time
 
 from typing import Optional     # noqa: F401. Used for mypy.
@@ -59,3 +60,18 @@ class Clock:
     def __exit__(self, exc_type, exc_value, traceback):
         if self.start is not None:
             self.toc()
+
+
+def log(function):
+    """Create a decorator that logs the elapsed time.
+
+    """
+    def wrapper(*args, **kwargs):
+        with Clock() as clock:
+            result = function(*args, **kwargs)
+            logging.debug('Completed {} after {} seconds.'
+                          .format(function.__name__, clock))
+
+        return result
+
+    return wrapper

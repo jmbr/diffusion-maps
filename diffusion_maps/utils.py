@@ -9,7 +9,10 @@ __all__ = ['coo_tocsr']
 import numpy as np
 import scipy.sparse
 
+from . import clock
 
+
+@clock.log
 def coo_tocsr(A: scipy.sparse.coo_matrix) -> scipy.sparse.csr_matrix:
     """Convert matrix to Compressed Sparse Row format, fast.
 
