@@ -61,19 +61,22 @@ class DiffusionMaps:
         Cut off for the computation of pairwise distances between points.
     _kdtree : cKDTree
         KD-tree for accelerating pairwise distance computation.
-    eigenvectors : np.array
-        Right eigenvectors of `K`.
-    eigenvalues : np.array
-        Eigenvalues of `K`.
     kernel_matrix : scipy.sparse.spmatrix
         (Possibly stochastic) matrix obtained by evaluating a Gaussian kernel
         on the data points.
+    renormalization : float or None
+        Renormalization exponent (alpha in the diffusion maps literature).
+    eigenvectors : np.array
+        Right eigenvectors of `kernel_matrix`.
+    eigenvalues : np.array
+        Eigenvalues of `kernel_matrix`.
 
     """
     def __init__(self, points: np.array, epsilon: float,
                  cut_off: Optional[float] = None,
                  num_eigenpairs: Optional[int] = default.num_eigenpairs,
                  normalize_kernel: Optional[bool] = True,
+                 renormalization: Optional[float] = default.renormalization,
                  kdtree_options: Optional[Dict] = None,
                  use_cuda: Optional[bool] = default.use_cuda) \
             -> None:
@@ -98,6 +101,10 @@ class DiffusionMaps:
         normalize_kernel : bool, optional
             Whether to convert the kernel into a stochastic matrix or
             not. Default is `True`.
+        renormalization : float, optional
+            Renormalization exponent to use if `normalize_kernel` is
+            True. This is the parameter $\alpha$ in the diffusion maps
+            literature. It must take a value between zero and one.
         kdtree_options : dict, optional
             A dictionary containing parameters to pass to the underlying
             cKDTree object.
@@ -107,23 +114,21 @@ class DiffusionMaps:
         """
         self.epsilon = epsilon
 
-        if cut_off is None:
-            self._cut_off = self.__get_cut_off(self.epsilon)
-        else:
-            self._cut_off = cut_off
+        self._cut_off = (cut_off if cut_off is not None
+                         else self.__get_cut_off(self.epsilon))
 
-        self.compute_kdtree(points, kdtree_options)
+        self._kdtree = self.compute_kdtree(points, kdtree_options)
 
-        distance_matrix = self.compute_distance_matrix()
-        distance_matrix = utils.coo_tocsr(distance_matrix)
-
-        self.kernel_matrix = self.compute_kernel_matrix(distance_matrix)
-
+        distance_matrix = utils.coo_tocsr(self.compute_distance_matrix())
+        kernel_matrix = self.compute_kernel_matrix(distance_matrix)
         if normalize_kernel is True:
-            self.normalize_kernel_matrix(self.kernel_matrix)
+            kernel_matrix = self.normalize_kernel_matrix(kernel_matrix,
+                                                         renormalization)
+        self.kernel_matrix = kernel_matrix
+        self.renormalization = renormalization if normalize_kernel else None
 
-        ew, ev = self.solve_eigenproblem(num_eigenpairs, use_cuda)
-
+        ew, ev = self.solve_eigenproblem(self.kernel_matrix, num_eigenpairs,
+                                         use_cuda)
         self.eigenvalues = ew
         self.eigenvectors = ev
 
@@ -134,15 +139,16 @@ class DiffusionMaps:
         """
         return 2.0 * epsilon  # XXX Validate this.
 
+    @staticmethod
     @clock.log
-    def compute_kdtree(self, points: np.array,
-                       kdtree_options: Optional[Dict]) -> None:
+    def compute_kdtree(points: np.array, kdtree_options: Optional[Dict]) \
+            -> None:
         """Compute kd-tree from points.
 
         """
         if kdtree_options is None:
             kdtree_options = dict()
-        self._kdtree = cKDTree(points, **kdtree_options)
+        return cKDTree(points, **kdtree_options)
 
     @clock.log
     def compute_distance_matrix(self) -> scipy.sparse.coo_matrix:
@@ -174,9 +180,11 @@ class DiffusionMaps:
             A sparse matrix whose entries are the distances between data
             points.
 
-        See also
-        --------
-        _compute_distance_matrix, make_stochastic_matrix
+        Returns
+        -------
+        kernel_matrix : scipy.sparse.spmatrix
+            A similarity matrix (unnormalized kernel matrix) obtained by
+            applying `kernel_function` to the entries in `distance_matrix`.
 
         """
         data = distance_matrix.data
@@ -184,17 +192,63 @@ class DiffusionMaps:
         kernel_matrix = distance_matrix._with_data(transformed_data, copy=True)
         return kernel_matrix
 
-    @staticmethod
     @clock.log
-    def normalize_kernel_matrix(matrix: scipy.sparse.csr_matrix) -> None:
-        """Normalize a sparse, non-negative matrix in CSR format.
-
-        Normalizes (in the 1-norm) each row of a non-negative matrix inplace.
+    def normalize_kernel_matrix(self, matrix: scipy.sparse.csr_matrix,
+                                alpha: Optional[float] = 1) \
+            -> scipy.sparse.csr_matrix:
+        """Compute normalized random walk Laplacian from similarity matrix.
 
         Parameters
         ----------
-        matrix : np.array
-            A matrix with non-negative entries to be normalized.
+        matrix : scipy.sparse.csr_matrix
+            A similarity matrix obtained by evaluating a kernel function on a
+            distance matrix.
+        alpha : float, optional
+            Renormalization parameter. The value of `alpha` must lie in the
+            closed unit interval.
+
+        Returns
+        -------
+        matrix : scipy.sparse.csr_matrix
+            A (suitably normalized) row-stochastic random walk Laplacian.
+
+        """
+        assert 0 <= alpha <= 1, 'Invalid normalization exponent.'
+
+        if alpha > 0:
+            shape = matrix.shape
+
+            row_sums = np.asarray(matrix.sum(axis=1)).squeeze()
+
+            inv_diag = 1.0 / row_sums**alpha
+            inv_diag[np.isnan(inv_diag)] = 0.0
+            Dinv = scipy.sparse.spdiags(inv_diag, 0, shape[0], shape[1])
+
+            Wtilde = Dinv @ matrix @ Dinv
+
+            return self.make_stochastic_matrix(Wtilde)
+        else:
+            return self.make_stochastic_matrix(matrix)
+
+    @staticmethod
+    @clock.log
+    def make_stochastic_matrix(matrix: scipy.sparse.csr_matrix) \
+            -> scipy.sparse.csr_matrix:
+        """Convert a sparse non-negative matrix into a row-stochastic matrix.
+
+        Carries out the normalization (in the 1-norm) of each row of a
+        non-negative matrix inplace.  The matrix should be in Compressed
+        Sparse Row format. Note that this method overwrites the input matrix.
+
+        Parameters
+        ----------
+        matrix : scipy.sparse.csr_matrix
+            A matrix with non-negative entries to be converted.
+
+        Returns
+        -------
+        matrix : scipy.sparse.csr_matrix
+            The same matrix passed as input but normalized.
 
         """
         data = matrix.data
@@ -204,6 +258,8 @@ class DiffusionMaps:
             norm1 = np.sum(data[a:b])
             data[a:b] /= norm1
 
+        return matrix
+
     @clock.log
     def kernel_function(self, distances: np.array) -> np.array:
         """Evaluate kernel function.
@@ -212,7 +268,8 @@ class DiffusionMaps:
         return np.exp(-np.square(distances) / (2.0 * self.epsilon))
 
     @clock.log
-    def solve_eigenproblem(self, num_eigenpairs: int, use_cuda: bool) \
+    def solve_eigenproblem(self, kernel_matrix: scipy.sparse.csr_matrix,
+                           num_eigenpairs: int, use_cuda: bool) \
             -> Tuple[np.array, np.array]:
         """Solve eigenvalue problem using CPU or GPU solver.
 
@@ -222,4 +279,4 @@ class DiffusionMaps:
         else:
             from .cpu_eigensolver import eigensolver
 
-        return eigensolver(self.kernel_matrix, num_eigenpairs)
+        return eigensolver(kernel_matrix, num_eigenpairs)

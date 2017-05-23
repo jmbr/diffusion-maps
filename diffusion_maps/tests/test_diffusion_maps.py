@@ -4,6 +4,7 @@
 
 import logging
 import unittest
+from typing import Optional
 
 import numpy as np
 # import matplotlib.pyplot as plt
@@ -20,6 +21,21 @@ def make_strip(xmin: float, ymin: float, width: float,
     y = height * np.random.rand(num_samples) - ymin
 
     return np.stack((x, y), axis=-1)
+
+
+def swiss_roll(nt: int, ns: int, freq: Optional[float] = 2.0) -> np.array:
+    """Draw samples from the swiss roll manifold.
+
+    """
+    tt = np.linspace(0.0, 2.0 * np.pi, nt)
+    ss = np.linspace(-0.5, 0.5, ns)
+    t, s = np.meshgrid(tt, ss)
+
+    x = t * np.cos(freq * t)
+    y = t * np.sin(freq * t)
+    z = s
+
+    return np.stack((x.ravel(), y.ravel(), z.ravel())).T
 
 
 class DiffusionMapsTest(unittest.TestCase):

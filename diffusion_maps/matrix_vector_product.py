@@ -20,10 +20,10 @@ class MatrixVectorProduct:
         self.descr = cs.cusparseCreateMatDescr()
 
     def __del__(self) -> None:
-        if self.descr is not None:
+        if hasattr(self, 'descr'):
             cs.cusparseDestroyMatDescr(self.descr)
             self.descr = None
-        if self.handle is not None:
+        if hasattr(self, 'handle'):
             cs.cusparseDestroy(self.handle)
             self.handle = None
 

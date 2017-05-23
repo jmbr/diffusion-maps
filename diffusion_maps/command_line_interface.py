@@ -20,7 +20,7 @@ import diffusion_maps.default as default
 import diffusion_maps.version as version
 from diffusion_maps import downsample, DiffusionMaps
 from diffusion_maps.profiler import Profiler
-from diffusion_maps.plot import plot_eigenvectors
+from diffusion_maps.plot import plot_results
 
 
 def output_eigenvalues(ew: np.array) -> None:
@@ -52,7 +52,8 @@ def use_cuda(args: argparse.Namespace) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Diffusion maps')
+    parser = argparse.ArgumentParser(description='computation of diffusion '
+                                     'maps')
     parser.add_argument('data_file', metavar='FILE', type=str,
                         help='process %(metavar)s (should be in NPY format)')
     parser.add_argument('epsilon', metavar='VALUE', type=float,
@@ -64,8 +65,13 @@ def main():
                         help='number of eigenvalue/eigenvector pairs to '
                         'compute')
     parser.add_argument('-c', '--cut-off', type=float, required=False,
-                        metavar='DISTANCE', help='cut-off to use to enforce '
-                        'sparsity in the diffusion maps computation.')
+                        metavar='DISTANCE', help='cut-off to use in order to '
+                        'enforce sparsity.')
+    parser.add_argument('-r', '--renormalization', type=float, required=False,
+                        default=default.renormalization, metavar='ALPHA',
+                        help='renormalization parameter for kernel matrix')
+    parser.add_argument('--no-gpu', action='store_true', required=False,
+                        help='explicitly disable GPU eigensolver')
     parser.add_argument('-o', '--output-data', type=str, required=False,
                         default='actual-data.npy', metavar='FILE', help='save '
                         'actual data used in computation to %(metavar)s')
@@ -82,8 +88,6 @@ def main():
                         '%(metavar)s')
     parser.add_argument('-p', '--plot', action='store_true', default=False,
                         help='plot first two eigenvectors')
-    parser.add_argument('--no-gpu', action='store_true', required=False,
-                        help='disable GPU eigensolver')
     parser.add_argument('--debug', action='store_true', required=False,
                         help='print debugging information')
     parser.add_argument('--profile', required=False, metavar='FILE',
@@ -98,14 +102,31 @@ def main():
     else:
         logging.basicConfig(level=logging.INFO, format='%(message)s')
 
+    if args.cut_off is not None and args.cut_off < args.epsilon:
+        logging.error('Error: cut off ({}) is smaller than bandwidth ({}).'
+                      .format(args.cut_off, args.epsilon))
+        sys.exit(-1)
+
     prog_name = os.path.basename(sys.argv[0])
     logging.info('{} {}'.format(prog_name, version.v_long))
     logging.info('')
     logging.info('Reading data from {!r}...'.format(args.data_file))
 
-    orig_data = np.load(args.data_file)
-    if args.num_samples:
-        data = downsample(orig_data, int(args.num_samples))
+    try:
+        orig_data = np.load(args.data_file)
+    except FileNotFoundError as exc:
+        logging.error('Error: {}'.format(exc))
+        sys.exit(-1)
+
+    if args.num_samples is not None:
+        num_samples = int(args.num_samples)
+        if num_samples <= orig_data.shape[0]:
+            data = downsample(orig_data, num_samples)
+        else:
+            logging.warning('Data set contains {} points but {} points '
+                            'were requested'.format(orig_data.shape[0],
+                                                    num_samples))
+            sys.exit(-1)
     else:
         data = orig_data
 
@@ -115,7 +136,10 @@ def main():
 
     with Profiler(args.profile):
         dm = DiffusionMaps(data, args.epsilon,
+                           cut_off=args.cut_off,
                            num_eigenpairs=args.num_eigenpairs,
+                           normalize_kernel=True,
+                           renormalization=args.renormalization,
                            use_cuda=use_cuda(args))
 
     if args.profile:
@@ -145,7 +169,7 @@ def main():
         np.save(args.output_data, data)
 
     if args.plot is True:
-        plot_eigenvectors(data, dm.eigenvectors)
+        plot_results(data, dm.eigenvalues, dm.eigenvectors)
 
 
 if __name__ == '__main__':

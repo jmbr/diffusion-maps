@@ -55,6 +55,6 @@ class GeometricHarmonicsInterpolator(NDInterpolatorBase):
             = kdtree.sparse_distance_matrix(dmaps_kdtree, radius,
                                             output_type='coo_matrix')
         kernel_matrix \
-            = self.diffusion_maps._compute_kernel_matrix(distance_matrix)
+            = self.diffusion_maps.compute_kernel_matrix(distance_matrix)
 
         return np.squeeze(kernel_matrix @ aux)

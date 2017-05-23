@@ -50,12 +50,24 @@ class cusparseOperation(IntEnum):
 
 class cusparseError(Exception):
     """Error in call to cuSPARSE library."""
+    error_message = {
+        0: 'The operation completed successfully.',
+        1: 'The cuSPARSE library was not initialized. This is usually caused by the lack of a prior call, an error in the CUDA Runtime API called by the cuSPARSE routine, or an error in the hardware setup.',
+        2: 'Resource allocation failed inside the cuSPARSE library. This is usually caused by a cudaMalloc() failure.',
+        3: 'An unsupported value or parameter was passed to the function (a negative vector size, for example).',
+        4: 'The function requires a feature absent from the device architecture; usually caused by the lack of support for atomic operations or double precision.',
+        5: 'An access to GPU memory space failed, which is usually caused by a failure to bind a texture.',
+        6: 'The GPU program failed to execute. This is often caused by a launch failure of the kernel on the GPU, which can be caused by multiple reasons.',
+        7: 'An internal cuSPARSE operation failed. This error is usually caused by a cudaMemcpyAsync() failure.',
+        8: 'The matrix type is not supported by this function. This is usually caused by passing an invalid matrix descriptor to the function.',
+        9: 'CUSPARSE_STATUS_ZERO_PIVOT.'
+    }
+
     def __init__(self, status):
         self.status = status
 
-    def __repr__(self):
-        return ('{}(status={})'
-                .format(self.__class__.__name__, self.status))
+    def __str__(self) -> str:
+        return self.error_message[self.status]
 
 
 def cusparseCreate() -> ctypes.c_int:
