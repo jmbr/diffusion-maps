@@ -9,14 +9,16 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from diffusion_maps import GeometricHarmonicsInterpolator
+from diffusion_maps import (GeometricHarmonicsInterpolator,
+                            DiffusionMaps)
 
 from diffusion_maps.clock import Clock
 
 
-def make_points(num_points: int) -> np.array:
-    xx, yy = np.meshgrid(np.linspace(-4, 4, num_points),
-                         np.linspace(-4, 4, num_points))
+def make_points(num_points: int, x0: float, y0: float, x1: float, y1: float) \
+        -> np.array:
+    xx, yy = np.meshgrid(np.linspace(x0, x1, num_points),
+                         np.linspace(y0, y1, num_points))
     return np.stack((xx.ravel(), yy.ravel())).T
 
 
@@ -66,7 +68,7 @@ class GeometricHarmonicsTest(unittest.TestCase):
         # self.num_points = self.points.shape[0]
         # self.values = np.ones(self.num_points)
 
-        self.points = make_points(23)
+        self.points = make_points(23, -4, -4, 4, 4)
         self.num_points = self.points.shape[0]
         self.values = f(self.points)
 
@@ -79,7 +81,7 @@ class GeometricHarmonicsTest(unittest.TestCase):
         ghi = GeometricHarmonicsInterpolator(self.points, self.values,
                                              eps, dmaps_opts)
 
-        points = make_points(100)
+        points = make_points(100, -4, -4, 4, 4)
 
         with Clock() as clock:
             values = ghi(points)
@@ -108,6 +110,47 @@ class GeometricHarmonicsTest(unittest.TestCase):
         #
         # plt.tight_layout()
         # plt.show()
+
+    def test_eigenfunctions(self):
+        logging.basicConfig(level=logging.DEBUG)
+
+        eps = 1e1
+        cut_off = 1e1 * eps
+        num_eigenpairs = 3
+
+        from .aux import make_strip
+        points = make_strip(0, 0, 1, 1e-1, 3000)
+
+        dm = DiffusionMaps(points, eps, cut_off=cut_off,
+                           num_eigenpairs=num_eigenpairs)
+        ev = dm.eigenvectors
+
+        # plt.subplot(1, 2, 1)
+        # plt.scatter(points[:, 0], points[:, 1], c=ev[1, :], cmap='RdBu_r')
+        # plt.subplot(1, 2, 2)
+        # plt.scatter(points[:, 0], points[:, 1], c=ev[2, :], cmap='RdBu_r')
+        # plt.show()
+
+        dmaps_opts = {'num_eigenpairs': num_eigenpairs, 'cut_off': cut_off}
+        ev1 = GeometricHarmonicsInterpolator(points, ev[1, :], eps, dmaps_opts)
+        ev2 = GeometricHarmonicsInterpolator(points, ev[2, :], eps, dmaps_opts)
+
+        # new_points = make_points(50, 0, 0, 1, 1e-1)
+        # ev1i = ev1(new_points)
+        # ev2i = ev2(new_points)
+        # plt.subplot(1, 2, 1)
+        # plt.scatter(new_points[:, 0], new_points[:, 1], c=ev1i, cmap='RdBu_r')
+        # plt.subplot(1, 2, 2)
+        # plt.scatter(new_points[:, 0], new_points[:, 1], c=ev2i, cmap='RdBu_r')
+        # plt.show()
+
+        rel_err1 = (np.linalg.norm(ev[1, :] - ev1(points), np.inf) /
+                    np.linalg.norm(ev[1, :], np.inf))
+        self.assertAlmostEqual(rel_err1, 0, places=1)
+
+        rel_err2 = (np.linalg.norm(ev[2, :] - ev2(points), np.inf) /
+                    np.linalg.norm(ev[2, :], np.inf))
+        self.assertAlmostEqual(rel_err2, 0, places=1)
 
 
 if __name__ == '__main__':
