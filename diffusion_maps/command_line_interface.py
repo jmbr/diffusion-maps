@@ -152,7 +152,6 @@ def main():
     output_eigenvalues(dm.eigenvalues)
 
     threshold = 1e1 * sys.float_info.epsilon
-    print('norm imaginary:', np.linalg.norm(dm.eigenvectors.imag, np.inf)
     if np.linalg.norm(dm.eigenvectors.imag, np.inf) > threshold:
         logging.warning('Eigenvectors have a non-negligible imaginary part. '
                         'This may be fixed by increasing the value of '
