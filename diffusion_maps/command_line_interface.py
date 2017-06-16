@@ -13,6 +13,7 @@ except ImportError:
 import logging
 import os
 import sys
+import warnings
 
 import numpy as np
 
@@ -145,7 +146,17 @@ def main():
     if args.profile:
         args.profile.close()
 
+    if hasattr(np, 'ComplexWarning'):
+        warnings.simplefilter('ignore', np.ComplexWarning)
+
     output_eigenvalues(dm.eigenvalues)
+
+    threshold = 1e1 * sys.float_info.epsilon
+    print('norm imaginary:', np.linalg.norm(dm.eigenvectors.imag, np.inf)
+    if np.linalg.norm(dm.eigenvectors.imag, np.inf) > threshold:
+        logging.warning('Eigenvectors have a non-negligible imaginary part. '
+                        'This may be fixed by increasing the value of '
+                        '--cut-off.')
 
     if args.matrix:
         logging.info('Saving transition matrix to {!r}'
