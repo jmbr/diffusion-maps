@@ -139,9 +139,11 @@ class GeometricHarmonicsTest(unittest.TestCase):
         # ev1i = ev1(new_points)
         # ev2i = ev2(new_points)
         # plt.subplot(1, 2, 1)
-        # plt.scatter(new_points[:, 0], new_points[:, 1], c=ev1i, cmap='RdBu_r')
+        # plt.scatter(new_points[:, 0], new_points[:, 1], c=ev1i,
+        #             cmap='RdBu_r')
         # plt.subplot(1, 2, 2)
-        # plt.scatter(new_points[:, 0], new_points[:, 1], c=ev2i, cmap='RdBu_r')
+        # plt.scatter(new_points[:, 0], new_points[:, 1], c=ev2i,
+        #             cmap='RdBu_r')
         # plt.show()
 
         rel_err1 = (np.linalg.norm(ev[1, :] - ev1(points), np.inf) /

@@ -1,0 +1,37 @@
+package:
+  name: diffusion-maps
+  version: "VERSION"
+
+source:
+  git_url: git@github.com:jmbr/diffusion-maps.git
+  git_rev: master
+
+build:
+  noarch: True
+  entry_points:
+    - diffusion-maps=diffusion_maps.command_line_interface:main
+
+requirements:
+  build:
+    - python >=3.5
+    - setuptools
+    - numpy
+    - scipy
+
+  run:
+    - python >=3.5
+    - numpy
+    - scipy
+
+test:
+  imports:
+    - diffusion_maps
+
+  commands:
+    - diffusion-maps --help
+
+about:
+  home: https://github.com/jmbr/diffusion-maps
+  license: MIT
+  license_file: LICENSE
+  summary: Fast library for computing diffusion maps
