@@ -65,7 +65,7 @@ def plot_results(data: np.array, eigenvalues: np.array,
     x = data[:, 0]
     y = data[:, 1]
 
-    num_eigenvectors = min(eigenvectors.shape[0]-1, default.num_eigenpairs-1)
+    num_eigenvectors = max(eigenvectors.shape[0]-1, default.num_eigenpairs-1)
 
     plt.figure(1)
     plt.step(range(eigenvalues.shape[0]), np.abs(eigenvalues))
@@ -73,16 +73,19 @@ def plot_results(data: np.array, eigenvalues: np.array,
     plt.ylabel('Modulus (norm) of eigenvalue')
     plt.title('Eigenvalues')
 
+    xmin, xmax = np.min(x), np.max(x)
+    ymin, ymax = np.min(y), np.max(y)
+    aspect_ratio = (ymax - ymin) / (xmax - xmin)
+
     plt.figure(2)
     rows, cols = get_rows_and_columns(num_eigenvectors)
     for k in range(1, eigenvectors.shape[0]):
         plt.subplot(rows, cols, k)
-        plt.scatter(x, y, c=eigenvectors[k, :], cmap='RdBu_r',
-                    rasterized=True)
+        plt.scatter(x, y, c=eigenvectors[k, :], cmap='RdBu_r', rasterized=True)
         plt.xlabel('$x$')
         plt.ylabel('$y$')
-        cb = plt.colorbar()
-        cb.set_label('Eigenvector value')
+        plt.gca().set_aspect(aspect_ratio)
+        plt.axis('off')
         plt.title('$\\psi_{{{}}}$'.format(k))
 
     plt.figure(3)
