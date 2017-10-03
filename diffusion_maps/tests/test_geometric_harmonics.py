@@ -148,50 +148,53 @@ class GeometricHarmonicsTest(unittest.TestCase):
                     np.linalg.norm(ev[2, :], np.inf))
         self.assertAlmostEqual(rel_err2, 0, places=1)
 
-    def test_gradient(self):
-        logging.basicConfig(level=logging.DEBUG)
-
-        eps = 1e1
-        cut_off = np.inf
-        num_eigenpairs = 8
-
-        points = make_strip(0, 0, 1, 1, 5000)
-
-        dm = DiffusionMaps(points, eps, cut_off=cut_off,
-                           num_eigenpairs=num_eigenpairs,
-                           use_cuda=False)
-        ev = dm.eigenvectors[4, :]
-
-        dmaps_opts = {'num_eigenpairs': num_eigenpairs,
-                      'cut_off': cut_off, 'use_cuda': False}
-        u = GeometricHarmonicsInterpolator(points, ev, eps, dmaps_opts)
-
-        new_points = make_points(10, 0, 0, 1, 1)
-        # ui = u(new_points)
-        dui = u.gradient(new_points)
-
-        rel_err = (np.linalg.norm(ev - u(points), np.inf) /
-                   np.linalg.norm(ev, np.inf))
-        self.assertAlmostEqual(rel_err, 0, places=1)
-
-        plt.scatter(points[:, 0], points[:, 1], c=u(points),
-                    cmap='RdBu_r')
-        plt.colorbar()
-        plt.quiver(new_points[:, 0], new_points[:, 1], dui[:, 0], dui[:, 1],
-                   units='xy', scale=2.5)
-        plt.gca().set_aspect('equal')
-        # plt.subplot(2, 2, 3)
-        # plt.scatter(new_points[:, 0], new_points[:, 1], c=dui[:, 0],
-        #             cmap='RdBu_r')
-        # plt.gca().set_aspect('equal')
-        # plt.colorbar()
-        # plt.subplot(2, 2, 4)
-        # plt.scatter(new_points[:, 0], new_points[:, 1], c=dui[:, 1],
-        #             cmap='RdBu_r')
-        # plt.gca().set_aspect('equal')
-        # plt.colorbar()
-        # # plt.tight_layout()
-        plt.show()
+    # def test_gradient(self):
+    #     logging.basicConfig(level=logging.DEBUG)
+    #
+    #     eps = 1e1
+    #     cut_off = np.inf
+    #     num_eigenpairs = 65
+    #
+    #     points = make_strip(0, 0, 1, 1, 5000)
+    #
+    #     dm = DiffusionMaps(points, eps, cut_off=cut_off,
+    #                        num_eigenpairs=num_eigenpairs,
+    #                        use_cuda=False)
+    #     ev = dm.eigenvectors[4, :]
+    #
+    #     dmaps_opts = {'num_eigenpairs': num_eigenpairs,
+    #                   'cut_off': cut_off, 'use_cuda': False}
+    #     u = GeometricHarmonicsInterpolator(points, ev, eps,
+    #                                        diffusion_maps=dm,
+    #                                        diffusion_maps_options=dmaps_opts)
+    #
+    #     rel_err = (np.linalg.norm(ev - u(points), np.inf) /
+    #                np.linalg.norm(ev, np.inf))
+    #     self.assertAlmostEqual(rel_err, 0, places=1)
+    #
+    #     # new_points = make_points(10, 0, 0, 1, 1)
+    #     # # ui = u(new_points)
+    #     # dui = u.gradient(new_points)
+    #
+    #     # plt.scatter(points[:, 0], points[:, 1], c=u(points),
+    #     #             cmap='RdBu_r')
+    #     # plt.colorbar()
+    #     # plt.quiver(new_points[:, 0], new_points[:, 1], dui[:, 0], dui[:, 1],
+    #     #            units='xy', scale=2.5)
+    #     # plt.gca().set_aspect('equal')
+    #
+    #     # plt.subplot(2, 2, 3)
+    #     # plt.scatter(new_points[:, 0], new_points[:, 1], c=dui[:, 0],
+    #     #             cmap='RdBu_r')
+    #     # plt.gca().set_aspect('equal')
+    #     # plt.colorbar()
+    #     # plt.subplot(2, 2, 4)
+    #     # plt.scatter(new_points[:, 0], new_points[:, 1], c=dui[:, 1],
+    #     #             cmap='RdBu_r')
+    #     # plt.gca().set_aspect('equal')
+    #     # plt.colorbar()
+    #     # # plt.tight_layout()
+    #     plt.show()
 
 
 if __name__ == '__main__':

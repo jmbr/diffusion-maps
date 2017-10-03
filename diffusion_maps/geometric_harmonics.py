@@ -26,8 +26,8 @@ class GeometricHarmonicsInterpolator(NDInterpolatorBase):
 
     """
     def __init__(self, points: np.array, values: np.array, epsilon: float,
-                 diffusion_maps: Optional[DiffusionMaps] = None,
-                 diffusion_maps_options: Optional[Dict] = None) -> None:
+                 diffusion_maps_options: Optional[Dict] = None,
+                 diffusion_maps: Optional[DiffusionMaps] = None) -> None:
         NDInterpolatorBase.__init__(self, points, values,
                                     need_contiguous=False, need_values=True)
         self.epsilon = epsilon
