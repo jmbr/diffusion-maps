@@ -12,6 +12,7 @@ __all__ = ['DiffusionMaps', 'downsample']
 
 
 import logging
+import sys
 from typing import Optional, Dict, Tuple
 
 import numpy as np
@@ -129,8 +130,10 @@ class DiffusionMaps:
 
         ew, ev = self.solve_eigenproblem(self.kernel_matrix, num_eigenpairs,
                                          use_cuda)
-        self.eigenvalues = ew
-        self.eigenvectors = ev
+        if np.linalg.norm(np.imag(ew) > 1e2 * sys.float_info.epsilon, np.inf):
+            raise ValueError('Eigenvalues have non-negligible imaginary part')
+        self.eigenvalues = np.real(ew)
+        self.eigenvectors = np.real(ev)
 
     @staticmethod
     def __get_cut_off(epsilon: float) -> float:
