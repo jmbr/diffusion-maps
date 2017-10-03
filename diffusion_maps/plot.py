@@ -2,7 +2,7 @@
 
 """
 
-__all__ = ['plot_results']
+__all__ = ['plot_diffusion_maps', 'plot_results']
 
 from typing import Tuple
 
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-from . import default
+from . import DiffusionMaps, default
 
 
 def get_rows_and_columns(num_plots: int) -> Tuple[int, int]:
@@ -73,10 +73,6 @@ def plot_results(data: np.array, eigenvalues: np.array,
     plt.ylabel('Modulus (norm) of eigenvalue')
     plt.title('Eigenvalues')
 
-    xmin, xmax = np.min(x), np.max(x)
-    ymin, ymax = np.min(y), np.max(y)
-    aspect_ratio = (ymax - ymin) / (xmax - xmin)
-
     plt.figure(2)
     rows, cols = get_rows_and_columns(num_eigenvectors)
     for k in range(1, eigenvectors.shape[0]):
@@ -84,7 +80,6 @@ def plot_results(data: np.array, eigenvalues: np.array,
         plt.scatter(x, y, c=eigenvectors[k, :], cmap='RdBu_r', rasterized=True)
         plt.xlabel('$x$')
         plt.ylabel('$y$')
-        plt.gca().set_aspect(aspect_ratio)
         plt.axis('off')
         plt.title('$\\psi_{{{}}}$'.format(k))
 
@@ -97,3 +92,12 @@ def plot_results(data: np.array, eigenvalues: np.array,
 
     # plt.tight_layout()
     plt.show()
+
+
+def plot_diffusion_maps(data: np.array, dmaps: DiffusionMaps) -> None:
+    """Plot diffusion maps.
+
+    High-level interface to plot_results.
+
+    """
+    plot_results(data, dmaps.eigenvalues, dmaps.eigenvectors)

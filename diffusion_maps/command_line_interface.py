@@ -21,7 +21,7 @@ import diffusion_maps.default as default
 import diffusion_maps.version as version
 from diffusion_maps import downsample, DiffusionMaps
 from diffusion_maps.profiler import Profiler
-from diffusion_maps.plot import plot_results
+from diffusion_maps.plot import plot_diffusion_maps
 
 
 def output_eigenvalues(ew: np.array) -> None:
@@ -179,7 +179,7 @@ def main():
         np.save(args.output_data, data)
 
     if args.plot is True:
-        plot_results(data, dm.eigenvalues, dm.eigenvectors)
+        plot_diffusion_maps(data, dm)
 
 
 if __name__ == '__main__':
