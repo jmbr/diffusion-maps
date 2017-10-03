@@ -19,6 +19,13 @@ def make_strip(xmin: float, ymin: float, width: float,
     return np.stack((x, y), axis=-1)
 
 
+def make_points(num_points: int, x0: float, y0: float, x1: float, y1: float) \
+        -> np.array:
+    xx, yy = np.meshgrid(np.linspace(x0, x1, num_points),
+                         np.linspace(y0, y1, num_points))
+    return np.stack((xx.ravel(), yy.ravel())).T
+
+
 def swiss_roll(nt: int, ns: int, freq: Optional[float] = 2.0) -> np.array:
     """Draw samples from the swiss roll manifold.
 
