@@ -28,15 +28,10 @@ def output_eigenvalues(ew: np.array) -> None:
     """Output the table of eigenvalues.
 
     """
-    logging.info('List of eigenvalues:')
-    fields = ['Real part', 'Imaginary part']
-    fmt = '{:>12} | {:<21}'
-    logging.info('-' * 30)
-    logging.info(fmt.format(*fields))
-    logging.info('-' * 30)
-    fmt = '{:+2.9f} | {:+2.9f}'
-    for eigenvalue in ew:
-        logging.info(fmt.format(eigenvalue.real, eigenvalue.imag))
+    logging.info('Index    Eigenvalue')
+    fmt = '{:5d}   {:2.9f}'
+    for i, eigenvalue in enumerate(ew):
+        logging.info(fmt.format(i, eigenvalue))
 
 
 def use_cuda(args: argparse.Namespace) -> bool:
@@ -59,6 +54,9 @@ def main():
                         help='process %(metavar)s (should be in NPY format)')
     parser.add_argument('epsilon', metavar='VALUE', type=float,
                         help='kernel bandwidth')
+    parser.add_argument('-b', '--bounds', type=str, required=False,
+                        metavar='FILE', help='Vector of upper bounds for '
+                        'periodic boxes')
     parser.add_argument('-n', '--num-samples', type=float, metavar='NUM',
                         required=False, help='number of data points to use')
     parser.add_argument('-e', '--num-eigenpairs', type=int, metavar='NUM',
@@ -135,12 +133,25 @@ def main():
                  'on {} data points...'
                  .format(args.num_eigenpairs-1, args.epsilon, data.shape[0]))
 
+    if args.bounds is not None:
+        try:
+            bounds = np.load(args.bounds)
+        except FileNotFoundError as exc:
+            logging.error('Unable to find file {!r}.'.format(args.bounds))
+            sys.exit(-1)
+        except OSError:
+            bounds = np.loadtxt(args.bounds)
+        kdtree_options = {'boxsize': np.concatenate((bounds, bounds))}
+    else:
+        kdtree_options = {}
+
     with Profiler(args.profile):
         dm = DiffusionMaps(data, args.epsilon,
                            cut_off=args.cut_off,
                            num_eigenpairs=args.num_eigenpairs,
                            normalize_kernel=True,
                            renormalization=args.renormalization,
+                           kdtree_options=kdtree_options,
                            use_cuda=use_cuda(args))
 
     if args.profile:

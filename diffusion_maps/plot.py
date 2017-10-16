@@ -68,9 +68,10 @@ def plot_results(data: np.array, eigenvalues: np.array,
     num_eigenvectors = max(eigenvectors.shape[0]-1, default.num_eigenpairs-1)
 
     plt.figure(1)
-    plt.step(range(eigenvalues.shape[0]), np.abs(eigenvalues))
+    plt.step(np.arange(1, eigenvalues.shape[0]), np.abs(eigenvalues[1:]))
+    plt.xticks(range(1, eigenvalues.shape[0]))
     plt.xlabel('Eigenvalue index')
-    plt.ylabel('Modulus (norm) of eigenvalue')
+    plt.ylabel('| Eigenvalue |')
     plt.title('Eigenvalues')
 
     plt.figure(2)
