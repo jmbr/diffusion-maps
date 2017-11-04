@@ -457,5 +457,5 @@ class DenseDiffusionMaps(BaseDiffusionMaps):
     @staticmethod
     def make_stochastic_matrix(matrix: np.array) -> np.array:
         assert matrix.shape[0] == matrix.shape[1], 'Matrix must be square'
-        Dinv = np.diag(1.0 / np.sum(matrix, axis=1))
-        return Dinv @ matrix
+        inv_diag = 1.0 / np.sum(matrix, axis=1)
+        return np.multiply(inv_diag[:, np.newaxis], matrix)
