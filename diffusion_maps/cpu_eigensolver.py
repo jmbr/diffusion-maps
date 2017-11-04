@@ -27,8 +27,7 @@ def eigensolver(matrix: scipy.sparse.csr_matrix,
     num_eigenpairs : int, optional
         Number of eigenvalue/eigenvector pairs to obtain.
     sigma : float, optional
-        Find eigenvalues close to the value of sigma. The default value is
-        near 1.0.
+        Find eigenvalues close to the value of sigma.
     initial_vector : np.array, optional
         Initial vector to use in the Arnoldi iteration. If not set, a vector
         with all entries equal to one will be used.

@@ -19,7 +19,7 @@ import numpy as np
 
 import diffusion_maps.default as default
 import diffusion_maps.version as version
-from diffusion_maps import downsample, DiffusionMaps
+from diffusion_maps import downsample, SparseDiffusionMaps, DenseDiffusionMaps
 from diffusion_maps.profiler import Profiler
 from diffusion_maps.plot import plot_diffusion_maps
 
@@ -51,7 +51,8 @@ def main():
     parser = argparse.ArgumentParser(description='computation of diffusion '
                                      'maps')
     parser.add_argument('data_file', metavar='FILE', type=str,
-                        help='process %(metavar)s (should be in NPY format)')
+                        help='process %(metavar)s (admits NumPy, MATLAB, and '
+                        'CSV formats)')
     parser.add_argument('epsilon', metavar='VALUE', type=float,
                         help='kernel bandwidth')
     parser.add_argument('-b', '--bounds', type=str, required=False,
@@ -65,12 +66,15 @@ def main():
                         'compute')
     parser.add_argument('-c', '--cut-off', type=float, required=False,
                         metavar='DISTANCE', help='cut-off to use in order to '
-                        'enforce sparsity.')
+                        'enforce sparsity')
     parser.add_argument('-r', '--renormalization', type=float, required=False,
                         default=default.renormalization, metavar='ALPHA',
                         help='renormalization parameter for kernel matrix')
     parser.add_argument('--no-gpu', action='store_true', required=False,
                         help='explicitly disable GPU eigensolver')
+    parser.add_argument('--dense', action='store_true', required=False,
+                        help='Use dense instead of sparse linear algebra '
+                        'routines')
     parser.add_argument('-o', '--output-data', type=str, required=False,
                         default='actual-data.npy', metavar='FILE', help='save '
                         'actual data used in computation to %(metavar)s')
@@ -112,7 +116,16 @@ def main():
     logging.info('Reading data from {!r}...'.format(args.data_file))
 
     try:
-        orig_data = np.load(args.data_file)
+        import pathlib
+        ext = pathlib.Path(args.data_file).suffix
+        if ext.endswith('dat') or ext.endswith('csv'):
+            orig_data = np.loadtxt(args.data_file)
+        elif ext.endswith('mat'):
+            import scipy.io
+            mdict = scipy.io.matlab.loadmat(args.data_file)
+            orig_data = mdict.popitem()[-1]
+        else:
+            orig_data = np.load(args.data_file)
     except FileNotFoundError as exc:
         logging.error('Error: {}'.format(exc))
         sys.exit(-1)
@@ -145,14 +158,20 @@ def main():
     else:
         kdtree_options = {}
 
+    if args.dense is True:
+        # Sometimes sparse linear algebra may induce large memory overheads,
+        # so we may want to try another approach.
+        diff_maps = DenseDiffusionMaps
+    else:
+        diff_maps = SparseDiffusionMaps
+
     with Profiler(args.profile):
-        dm = DiffusionMaps(data, args.epsilon,
-                           cut_off=args.cut_off,
-                           num_eigenpairs=args.num_eigenpairs,
-                           normalize_kernel=True,
-                           renormalization=args.renormalization,
-                           kdtree_options=kdtree_options,
-                           use_cuda=use_cuda(args))
+        dm = diff_maps(data, args.epsilon, cut_off=args.cut_off,
+                       num_eigenpairs=args.num_eigenpairs,
+                       normalize_kernel=True,
+                       renormalization=args.renormalization,
+                       kdtree_options=kdtree_options,
+                       use_cuda=use_cuda(args))
 
     if args.profile:
         args.profile.close()
