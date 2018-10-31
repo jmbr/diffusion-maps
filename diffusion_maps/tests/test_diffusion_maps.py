@@ -10,7 +10,7 @@ import numpy as np
 
 from diffusion_maps import DiffusionMaps, downsample
 
-from .aux import make_strip
+from .misc import make_strip
 
 
 class DiffusionMapsTest(unittest.TestCase):

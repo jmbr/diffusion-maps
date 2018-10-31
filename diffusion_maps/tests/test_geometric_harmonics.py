@@ -9,7 +9,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from .aux import make_strip, make_points
+from .misc import make_strip, make_points
 
 from diffusion_maps import (GeometricHarmonicsInterpolator,
                             DiffusionMaps)

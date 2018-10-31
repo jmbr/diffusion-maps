@@ -1,4 +1,4 @@
-"""Auxiliary functions for the unit tests.
+"""Miscellaneous functions used by the unit tests.
 
 """
 
