@@ -63,3 +63,26 @@ make -C doc html
 #+END_SRC
 
 to build the documentation.
+
+* License
+
+This code is released under the MIT license. See =LICENSE= for details.
+
+* Citation
+
+If you use this code in publications, please cite it as:
+
+- Juan M. Bello-Rivas. (2017, May 20). jmbr/diffusion-maps 0.0.1 (Version 0.0.1). Zenodo. http://doi.org/10.5281/zenodo.581667
+
+* Acknowledgments
+
+The =diffusion-maps= library has originally been written by Juan M. Bello-Rivas.
+
+Others have further contributed to =diffusion-maps= by reporting problems,
+suggesting various improvements, or submitting actual code. Here is a list of
+these people. Help me keep it complete and exempt of errors.
+
+Felix Dietrich
+Mahdi Kooshkbaghi
+Daniel Lehmberg
+Philipp Schuegraf
