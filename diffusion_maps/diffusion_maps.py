@@ -416,8 +416,8 @@ class DenseDiffusionMaps(BaseDiffusionMaps):
             warnings.warn('A cut off was specified for dense diffusion maps.')
 
         distance_matrix_squared = scipy.spatial.distance.pdist(points, metric='sqeuclidean')  # noqa
+        distance_matrix_squared = scipy.spatial.distance.squareform(distance_matrix_squared)
         kernel_matrix = np.exp(-distance_matrix_squared / (2.0 * epsilon))
-        kernel_matrix = scipy.spatial.distance.squareform(kernel_matrix)
         if normalize_kernel is True:
             kernel_matrix = self.normalize_kernel_matrix(kernel_matrix,
                                                          renormalization)
