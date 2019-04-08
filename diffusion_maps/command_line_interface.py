@@ -39,8 +39,8 @@ def use_cuda(args: argparse.Namespace) -> bool:
 
     """
     try:
-        import pycuda           # noqa
-        use_cuda = True and not args.no_gpu
+        import numba.cuda as cuda # noqa
+        use_cuda = cuda.is_available() and not args.no_gpu
     except ImportError:
         use_cuda = False
 
@@ -149,7 +149,7 @@ def main():
     if args.bounds is not None:
         try:
             bounds = np.load(args.bounds)
-        except FileNotFoundError as exc:
+        except FileNotFoundError:
             logging.error('Unable to find file {!r}.'.format(args.bounds))
             sys.exit(-1)
         except OSError:

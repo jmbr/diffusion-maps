@@ -11,35 +11,54 @@ import ctypes
 import ctypes.util
 from enum import IntEnum
 
-import pycuda.autoinit          # noqa
-import pycuda.gpuarray as gpuarray
+from numba.cuda.cudadrv.devicearray import DeviceNDArray
+
+
+class cusparseContext(ctypes.Structure):
+    pass
+
+
+cusparseHandle_t = ctypes.POINTER(cusparseContext)
+
+
+class cusparseMatDescr(ctypes.Structure):
+    pass
+
+
+cusparseMatDescr_t = ctypes.POINTER(cusparseMatDescr)
 
 
 libcusparse = ctypes.cdll.LoadLibrary(ctypes.util.find_library('cusparse'))
 
 libcusparse.cusparseCreate.restype = int
-libcusparse.cusparseCreate.argtypes = [ctypes.c_void_p]
+libcusparse.cusparseCreate.argtypes = [ctypes.POINTER(cusparseHandle_t)]
 
 libcusparse.cusparseDestroy.restype = int
-libcusparse.cusparseDestroy.argtypes = [ctypes.c_int]
+libcusparse.cusparseDestroy.argtypes = [cusparseHandle_t]
 
 libcusparse.cusparseGetVersion.restype = int
-libcusparse.cusparseGetVersion.argtypes = [ctypes.c_int, ctypes.c_void_p]
+libcusparse.cusparseGetVersion.argtypes = [cusparseHandle_t, ctypes.c_void_p]
 
 libcusparse.cusparseCreateMatDescr.restype = int
-libcusparse.cusparseCreateMatDescr.argtypes = [ctypes.c_void_p]
+libcusparse.cusparseCreateMatDescr.argtypes = [ctypes.POINTER(cusparseMatDescr_t)]
 
 libcusparse.cusparseDestroyMatDescr.restype = int
-libcusparse.cusparseDestroyMatDescr.argtypes = [ctypes.c_int]
+libcusparse.cusparseDestroyMatDescr.argtypes = [cusparseMatDescr_t]
 
 libcusparse.cusparseDcsrmv.restype = int
-libcusparse.cusparseDcsrmv.argtypes = [ctypes.c_int, ctypes.c_int,
-                                       ctypes.c_int, ctypes.c_int,
-                                       ctypes.c_int, ctypes.c_void_p,
-                                       ctypes.c_int, ctypes.c_void_p,
-                                       ctypes.c_void_p, ctypes.c_void_p,
-                                       ctypes.c_void_p, ctypes.c_void_p,
-                                       ctypes.c_void_p]
+libcusparse.cusparseDcsrmv.argtypes = [cusparseHandle_t,
+                                       ctypes.c_int,
+                                       ctypes.c_int,
+                                       ctypes.c_int,
+                                       ctypes.c_int,
+                                       ctypes.c_void_p,
+                                       cusparseMatDescr_t,
+                                       ctypes.c_ulong,
+                                       ctypes.c_ulong,
+                                       ctypes.c_ulong,
+                                       ctypes.c_ulong,
+                                       ctypes.c_void_p,
+                                       ctypes.c_ulong]
 
 
 class cusparseOperation(IntEnum):
@@ -70,8 +89,8 @@ class cusparseError(Exception):
         return self.error_message[self.status]
 
 
-def cusparseCreate() -> ctypes.c_int:
-    handle = ctypes.c_int()
+def cusparseCreate() -> cusparseHandle_t:
+    handle = cusparseHandle_t()
 
     status = libcusparse.cusparseCreate(ctypes.byref(handle))
     if status != 0:
@@ -80,7 +99,7 @@ def cusparseCreate() -> ctypes.c_int:
     return handle
 
 
-def cusparseDestroy(handle: ctypes.c_int) -> None:
+def cusparseDestroy(handle: cusparseHandle_t) -> None:
     status = libcusparse.cusparseDestroy(handle)
     if status != 0:
         raise cusparseError(status)
@@ -88,18 +107,18 @@ def cusparseDestroy(handle: ctypes.c_int) -> None:
     return handle
 
 
-def cusparseGetVersion(handle: ctypes.c_int) -> int:
+def cusparseGetVersion(handle: cusparseHandle_t) -> int:
     version = ctypes.c_int()
 
     status = libcusparse.cusparseGetVersion(handle, ctypes.byref(version))
     if status != 0:
         raise cusparseError(status)
 
-    return status
+    return version
 
 
 def cusparseCreateMatDescr() -> ctypes.c_int:
-    descr = ctypes.c_int()
+    descr = cusparseMatDescr_t()
 
     status = libcusparse.cusparseCreateMatDescr(ctypes.byref(descr))
     if status != 0:
@@ -108,23 +127,32 @@ def cusparseCreateMatDescr() -> ctypes.c_int:
     return descr
 
 
-def cusparseDestroyMatDescr(descr: ctypes.c_int) -> None:
+def cusparseDestroyMatDescr(descr: cusparseMatDescr_t) -> None:
     status = libcusparse.cusparseDestroyMatDescr(descr)
     if status != 0:
         raise cusparseError(status)
 
 
-def cusparseDcsrmv(handle: ctypes.c_int, transA: cusparseOperation, m: int,
-                   n: int, nnz: int, alpha: float, descrA: ctypes.c_int,
-                   csrValA: gpuarray.GPUArray, csrRowPtrA: gpuarray.GPUArray,
-                   csrColIndA: gpuarray.GPUArray, x: gpuarray.GPUArray, beta:
-                   float, y: gpuarray.GPUArray) -> None:
+def cusparseDcsrmv(handle: cusparseHandle_t, transA: cusparseOperation,
+                   m: int, n: int, nnz: int, alpha: float,
+                   descrA: cusparseMatDescr_t, csrValA: DeviceNDArray,
+                   csrRowPtrA: DeviceNDArray, csrColIndA: DeviceNDArray,
+                   x: DeviceNDArray, beta:
+                   float, y: DeviceNDArray) -> None:
     alpha_ = ctypes.c_double(alpha)
     beta_ = ctypes.c_double(beta)
-    status = libcusparse.cusparseDcsrmv(handle, transA, m, n, nnz,
-                                        ctypes.byref(alpha_), descrA,
-                                        csrValA.ptr, csrRowPtrA.ptr,
-                                        csrColIndA.ptr, x.ptr,
-                                        ctypes.byref(beta_), y.ptr)
+    status = libcusparse.cusparseDcsrmv(handle,
+                                        transA,
+                                        m,
+                                        n,
+                                        nnz,
+                                        ctypes.byref(alpha_),
+                                        descrA,
+                                        csrValA.device_ctypes_pointer,
+                                        csrRowPtrA.device_ctypes_pointer,
+                                        csrColIndA.device_ctypes_pointer,
+                                        x.device_ctypes_pointer,
+                                        ctypes.byref(beta_),
+                                        y.device_ctypes_pointer)
     if status != 0:
         raise cusparseError(status)

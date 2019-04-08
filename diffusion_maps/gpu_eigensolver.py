@@ -12,10 +12,7 @@ import logging
 from typing import Optional, Tuple
 import sys
 
-try:
-    import pycuda.gpuarray as gpuarray
-except ImportError:
-    gpuarray = None
+import numba.cuda as cuda
 
 import numpy as np
 import scipy.sparse
@@ -221,8 +218,8 @@ def eigensolver(matrix: scipy.sparse.csr_matrix,
         # # sol = solve(rhs)
         # sol = matrix @ rhs
         # workdnp[idx_sol:idx_sol+N] = sol
-        sol = MVP.product(gpuarray.to_gpu(rhs.astype(np.float64)))
-        workdnp[idx_sol:idx_sol+N] = sol.get()
+        sol = MVP.product(cuda.to_device(rhs.astype(np.float64)))
+        workdnp[idx_sol:idx_sol+N] = sol.copy_to_host() # XXX pin memory
     clk.toc()
 
     logging.debug('Done with Arnoldi iteration after {} steps. '
@@ -249,7 +246,7 @@ def eigensolver(matrix: scipy.sparse.csr_matrix,
     nconv = iparam[4] - 1
     logging.debug('Converged on {} eigenpairs.'.format(nconv))
 
-    ew = np.array(d[:nconv])
+    ew = np.array(d[:num_eigenpairs])
     ii = np.argsort(np.abs(ew))[::-1]
     ev = vnp[ii, :]
 

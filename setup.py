@@ -20,7 +20,7 @@ setup(name='diffusion-maps',
       install_requires=['scipy', 'numpy'],
       extras_require={
           'plotting': ['matplotlib'],
-          'cuda': ['pycuda']
+          'cuda': ['numba']
       },
       entry_points={
           'console_scripts': 'diffusion-maps = diffusion_maps.command_line_interface:main'
