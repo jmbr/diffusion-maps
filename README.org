@@ -1,7 +1,7 @@
 #+TITLE: Diffusion Maps and Geometric Harmonics for Python
 #+AUTHOR: Juan M. Bello Rivas
 #+EMAIL: jmbr@superadditive.com
-#+DATE: <2017-05-20 Sat>
+#+DATE: <2019-04-08 Mon>
 
 * Overview
 
@@ -42,7 +42,7 @@ The =diffusion-maps= command can display the resulting diffusion maps using [[ht
 
 * Command-line utility
 
-The ~diffusion-maps~ command reads data sets stored in NPY format. The simplest way to use it is to invoke it as follows:
+The ~diffusion-maps~ command reads data sets stored in NPY, CSV, or MATLAB's MAT format. The simplest way to use it is to invoke it as follows:
 
 #+BEGIN_SRC bash
 diffusion-maps DATA-SET.NPY EPSILON-VALUE
